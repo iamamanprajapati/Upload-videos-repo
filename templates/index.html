@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Social Uploader</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --text: #16181d; --muted: #667085; --border: #e3e6eb;
+    --accent: #4f46e5; --accent-text: #fff; --ok: #12805c; --err: #c4320a; --track: #eceef2;
+    --yt: #ff0033; --fb: #1877f2; --ig: #d62976;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #181b21; --text: #e8eaee; --muted: #98a1b0; --border: #2a2f38;
+      --accent: #818cf8; --accent-text: #0f1115; --ok: #4ade80; --err: #fb923c; --track: #262a32;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+  label.field { display: block; font-weight: 600; font-size: 13px; margin: 14px 0 6px; }
+  label.field:first-child { margin-top: 0; }
+  input[type=text], textarea, select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px;
+    background: var(--bg); color: var(--text); font: inherit;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .hint { color: var(--muted); font-size: 12px; font-weight: 400; }
+  #drop { border: 2px dashed var(--border); border-radius: 12px; padding: 32px 16px; text-align: center;
+          cursor: pointer; transition: border-color .15s, background .15s; }
+  #drop.over, #drop:hover { border-color: var(--accent); }
+  #drop strong { display: block; font-size: 16px; }
+  #drop .hint { display: block; margin-top: 4px; }
+  #fileName { margin-top: 8px; font-weight: 600; word-break: break-all; }
+  .platforms { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .plat { border: 1px solid var(--border); border-radius: 11px; padding: 12px; display: flex; gap: 10px; align-items: flex-start; }
+  .plat input { margin-top: 4px; width: 17px; height: 17px; accent-color: var(--accent); }
+  .plat .name { font-weight: 700; }
+  .plat .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+  .plat.disabled { opacity: .55; }
+  .plat .note { font-size: 12px; color: var(--muted); }
+  .plat .warn { font-size: 12px; color: var(--err); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
+  button { width: 100%; padding: 13px; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+           font: 600 16px/1 inherit; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  #error { color: var(--err); margin: 10px 0 0; font-weight: 600; }
+  .status-row { padding: 12px 0; border-top: 1px solid var(--border); }
+  .status-row:first-of-type { border-top: 0; padding-top: 0; }
+  .status-head { display: flex; justify-content: space-between; gap: 10px; font-weight: 700; }
+  .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; margin: 8px 0 6px; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .done .bar > div { background: var(--ok); }
+  .error .bar > div { background: var(--err); }
+  .msg { font-size: 13px; color: var(--muted); word-break: break-word; }
+  .error .msg { color: var(--err); }
+  .msg a { color: var(--accent); font-weight: 600; }
+  .badge { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .done .badge { color: var(--ok); }
+  .error .badge { color: var(--err); }
+  #results h2 { font-size: 16px; margin: 0 0 12px; }
+  #results .meta { color: var(--muted); font-size: 13px; margin: -6px 0 12px; }
+  #again { margin-top: 14px; background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  .retry { width: auto; margin-top: 8px; padding: 8px 14px; font-size: 13px; background: transparent;
+           color: var(--accent); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Social Uploader</h1>
+  <p class="sub">Ek baar video daalo, aur ye YouTube, Facebook aur Instagram teeno pe upload ho jayega.</p>
+
+  <form id="form">
+    <div class="card">
+      <div id="drop">
+        <strong>Video yahan drag karo ya click karke chuno</strong>
+        <span class="hint">MP4 sabse best hai (MOV apne aap MP4 mein badal jayega)</span>
+        <div id="fileName"></div>
+        <input type="file" id="video" name="video" accept="video/*" hidden>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="platforms" id="platforms"></div>
+    </div>
+
+    <div class="card">
+      <label class="field" for="title">Title <span class="hint">— YouTube aur Facebook (max 100)</span></label>
+      <input type="text" id="title" name="title" maxlength="100" placeholder="Video ka title">
+
+      <label class="field" for="description">Description / Caption <span class="hint">— teeno jagah jayega, hashtags yahin likho</span></label>
+      <textarea id="description" name="description" placeholder="Caption… #hashtag"></textarea>
+
+      <label class="field" for="tags">YouTube tags <span class="hint">— comma se alag karo</span></label>
+      <input type="text" id="tags" name="tags" placeholder="vlog, travel, india">
+
+      <div class="row">
+        <div>
+          <label class="field" for="youtube_privacy">YouTube visibility</label>
+          <select id="youtube_privacy" name="youtube_privacy">
+            <option value="public">Public</option>
+            <option value="unlisted">Unlisted</option>
+            <option value="private">Private</option>
+          </select>
+        </div>
+        <div>
+          <label class="field" for="facebook_mode">Facebook pe kaise?</label>
+          <select id="facebook_mode" name="facebook_mode">
+            <option value="video">Normal Video</option>
+            <option value="reel">Reel (3–90 sec, vertical)</option>
+          </select>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" name="made_for_kids"> Ye video bachchon ke liye banaya gaya hai (YouTube "Made for kids")</label>
+    </div>
+
+    <button type="submit" id="submit">Upload karo</button>
+    <p id="error"></p>
+  </form>
+
+  <div class="card" id="results" hidden>
+    <h2>Upload status</h2>
+    <p class="meta" id="videoMeta"></p>
+    <div id="rows"></div>
+    <button type="button" id="again" hidden>Naya video upload karo</button>
+  </div>
+</main>
+
+<script>
+const CONFIG = {{ config|tojson }};
+const COLORS = { youtube: "var(--yt)", facebook: "var(--fb)", instagram: "var(--ig)" };
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Platform checkboxes
+$("#platforms").innerHTML = Object.entries(CONFIG).map(([key, p]) => `
+  <label class="plat ${p.ok ? "" : "disabled"}">
+    <input type="checkbox" name="platforms" value="${key}" ${p.ok ? "checked" : "disabled"}>
+    <div>
+      <div class="name"><span class="dot" style="background:${COLORS[key]}"></span>${esc(p.label)}</div>
+      <div class="note">${p.ok ? "Ready" : esc(p.reason)}</div>
+      ${p.warning ? `<div class="warn">${esc(p.warning)}</div>` : ""}
+    </div>
+  </label>`).join("");
+
+// File chooser + drag-drop
+const input = $("#video"), drop = $("#drop");
+drop.onclick = () => input.click();
+input.onchange = () => showFile();
+["dragenter", "dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", ev => { if (ev.dataTransfer.files.length) { input.files = ev.dataTransfer.files; showFile(); } });
+function showFile() {
+  const f = input.files[0];
+  if (!f) return;
+  $("#fileName").textContent = `${f.name} · ${(f.size / 1048576).toFixed(1)} MB`;
+  if (!$("#title").value) $("#title").value = f.name.replace(/\.[^.]+$/, "").slice(0, 100);
+}
+
+// Upload
+$("#form").onsubmit = (e) => {
+  e.preventDefault();
+  $("#error").textContent = "";
+  if (!input.files[0]) return ($("#error").textContent = "Pehle video chuno");
+  const fd = new FormData($("#form"));
+  if (!fd.getAll("platforms").length) return ($("#error").textContent = "Kam se kam ek platform chuno");
+
+  $("#submit").disabled = true;
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/upload");
+  xhr.upload.onprogress = (ev) => {
+    if (ev.lengthComputable) $("#submit").textContent = `File taiyaar ho rahi hai… ${Math.round(ev.loaded / ev.total * 100)}%`;
+  };
+  xhr.onload = () => {
+    let data = {};
+    try { data = JSON.parse(xhr.responseText); } catch {}
+    if (xhr.status !== 200) {
+      $("#error").textContent = data.error || `Error ${xhr.status}`;
+      $("#submit").disabled = false; $("#submit").textContent = "Upload karo";
+      return;
+    }
+    $("#form").hidden = true;
+    $("#results").hidden = false;
+    const i = data.info || {};
+    $("#videoMeta").textContent = i.duration ? `${i.width}×${i.height} · ${Math.round(i.duration)} sec` : "";
+    poll(data.job_id);
+  };
+  xhr.onerror = () => {
+    $("#error").textContent = "Server se connect nahi ho paaya — kya app.py chal raha hai?";
+    $("#submit").disabled = false; $("#submit").textContent = "Upload karo";
+  };
+  xhr.send(fd);
+};
+
+const LABEL = { queued: "Wait", uploading: "Upload ho raha hai", done: "Ho gaya", error: "Fail" };
+async function poll(id) {
+  let job;
+  try { job = await (await fetch(`/api/jobs/${id}`)).json(); }
+  catch { return setTimeout(() => poll(id), 2000); }
+  $("#rows").innerHTML = Object.entries(job.platforms).map(([key, p]) => `
+    <div class="status-row ${p.state}">
+      <div class="status-head"><span><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:${COLORS[key]}"></span>${esc(p.label)}</span>
+        <span class="badge">${LABEL[p.state] || p.state}${p.state === "uploading" ? ` · ${Math.round(p.progress)}%` : ""}</span></div>
+      <div class="bar"><div style="width:${p.state === "error" ? 100 : p.progress}%"></div></div>
+      <div class="msg">${p.url ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">Video dekho →</a>` : esc(p.message)}</div>
+      ${p.state === "error" ? `<button type="button" class="retry" data-platform="${key}">Dobara try karo</button>` : ""}
+    </div>`).join("");
+  document.querySelectorAll(".retry").forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const r = await fetch(`/api/jobs/${id}/retry/${b.dataset.platform}`, { method: "POST" });
+    if (!r.ok) { b.disabled = false; alert((await r.json().catch(() => ({}))).error || "Retry nahi ho paaya"); return; }
+    $("#again").hidden = true;
+    clearTimeout(pollTimer);
+    poll(id);
+  });
+  const finished = Object.values(job.platforms).every(p => p.state === "done" || p.state === "error");
+  if (finished) $("#again").hidden = false;
+  else pollTimer = setTimeout(() => poll(id), 1500);
+}
+let pollTimer;
+$("#again").onclick = () => location.reload();
+</script>
+</body>
+</html>
